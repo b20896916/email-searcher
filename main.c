@@ -19,7 +19,7 @@ typedef struct DisjointSet{
     int size;
 } disjoint_set;
 
-#define N_NAME_HASH 23173
+#define N_NAME_HASH 18993
 int n_mails, n_queries;
 mail *mails;
 query *queries;
@@ -30,7 +30,7 @@ int n_cc, max_cc; // number of connected component, largest size of connected co
 
 int cmpfunc(const void* a, const void* b); // for qsort, type: lld
 bool alpha_numeric(char c); // return true iff c in /([A-Za-z0-9]+)/g
-int transform(char c); // map '0'-'9' to 0-9, 'a'-'z' and 'A'-'Z' to 10~35
+inline int transform(char c); // map '0'-'9' to 0-9, 'a'-'z' and 'A'-'Z' to 10~35
 void token_hash(char content[100000], lld hash_array[100000], int *len); // hash content to hash_array, save token_num to len, need modifying to reduce complexity
 int name_hash(char name[32]); // hash name to 0-23172
 void makeset(int i);
@@ -91,17 +91,17 @@ bool alpha_numeric(char c){
     return false;
 }
 
-int transform(char c){
-    /* if ((c >= '0') && (c <= '9')) */ return c-'0';
-    // if ((c >= 'a') && (c <= 'z')) return c-'a'+10;
-    // if ((c >= 'A') && (c <= 'Z')) return c-'A'+10;
+inline int transform(char c){
+    if ((c >= '0') && (c <= '9')) return c-'0';
+    if ((c >= 'a') && (c <= 'z')) return c-'a'+10;
+    if ((c >= 'A') && (c <= 'Z')) return c-'A'+10;
 }
 
 void token_hash(char content[100000], lld hash_array[100000], int *len){
     lld hash = 0;
     for (int i = 0; i < 100000; i++){
         if (alpha_numeric(content[i])){
-            hash *= 37;
+            hash *= 36;
             hash = (hash + transform(content[i])) % 2021060687879487;
         }
         else{
@@ -126,7 +126,7 @@ int name_hash(char name[32]){
     int r = 0, i = 0;
     while (name[i]){
         r <<= 6;
-        r |= transform(name[i]);
+        r |= name[i];
         r %= N_NAME_HASH;
         i++;
     }
