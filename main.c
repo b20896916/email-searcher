@@ -23,7 +23,7 @@ mail *mails;
 query *queries;
 mymail mymails[10000]; // mails after preprocessing
 disjoint_set ds[N_NAME_HASH]; // disjoint set
-bool set[N_NAME_HASH] = {};
+bool set[N_NAME_HASH];
 int n_cc, max_cc; // number of connected component, largest size of connected component
 
 int cmpfunc(const void* a, const void* b); // for qsort, type: lld
@@ -34,23 +34,24 @@ int name_hash(char name[32]); // hash name to 0-23172
 void makeset(int i);
 inline void static init(int i);
 int find_set(int i); // path compression
-void link(int ra, int rb); // union by size
+void dslink(int ra, int rb); // union by size
 
 int main(){
+    /*
     for (int i = 0; i < 10000; i++){
         mymails[i].token = (lld*) malloc(sizeof(lld) * 100000);
         mymails[i].token_num = 0;
     }
-
+    */
     api.init(&n_mails, &n_queries, &mails, &queries);
 
     for (int i = 0; i < n_mails; i++){
         int idx = mails[i].id;
         mymails[idx].from = name_hash(mails[i].from);
         mymails[idx].to = name_hash(mails[i].to);
-        token_hash(mails[i].subject, mymails[idx].token, &mymails[idx].token_num);
-        token_hash(mails[i].content, mymails[idx].token, &mymails[idx].token_num);
-        qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
+        // token_hash(mails[i].subject, mymails[idx].token, &mymails[idx].token_num);
+        // token_hash(mails[i].content, mymails[idx].token, &mymails[idx].token_num);
+        // qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
     }
 
     for (int i = 0; i < n_queries; i++)
@@ -64,13 +65,11 @@ int main(){
         }
         else{
             // group analyse
-            n_cc = 0; max_cc = 1;
-            for (int j = 0; j < N_NAME_HASH; j++){
-                ds[j].p = j;
-                ds[j].size = 1;
-            }
+            for (int j = 0; j < N_NAME_HASH; j++) set[j] = 0;
+            n_cc = 0; max_cc = 0;
+
             for (int k = 0; k < queries[i].data.group_analyse_data.len; k++){
-                link(mymails[queries[i].data.group_analyse_data.mids[k]].from, mymails[queries[i].data.group_analyse_data.mids[k]].to);
+                dslink(mymails[queries[i].data.group_analyse_data.mids[k]].from, mymails[queries[i].data.group_analyse_data.mids[k]].to);
             }
             int ans[2] = {n_cc, max_cc};
             api.answer(queries[i].id, ans, 2);
@@ -146,12 +145,13 @@ inline void static init(int i){
 }
 
 int find_set(int i){
+    init(i);
     // TODO: Implement your find algorithm here
     if (ds[i].p != i) ds[i].p = find_set(ds[i].p);
     return ds[i].p;
 }
 
-void link(int ra, int rb){
+void dslink(int ra, int rb){
     // TODO: Implement your union algorithm here
     int a = find_set(ra), b = find_set(rb);
     if (a != b){
