@@ -54,7 +54,7 @@ int main(){
         // qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
     }
 
-    for (int i = 0; i < n_queries; i++)
+    for (int i = 0; i < n_queries; i++) {
         if (queries[i].type == expression_match){
             // expression match
             // api.answer(queries[i].id, NULL, 0);
@@ -74,6 +74,7 @@ int main(){
             int ans[2] = {n_cc, max_cc};
             api.answer(queries[i].id, ans, 2);
         }
+    }
     return 0;
 }
 
@@ -89,9 +90,9 @@ bool alpha_numeric(char c){
 }
 
 int transform(char c){
-    if ((c >= '0') && (c <= '9')) return c-'0';
-    if ((c >= 'a') && (c <= 'z')) return c-'a'+10;
-    if ((c >= 'A') && (c <= 'Z')) return c-'A'+10;
+    /* if ((c >= '0') && (c <= '9')) */ return c-'0';
+    // if ((c >= 'a') && (c <= 'z')) return c-'a'+10;
+    // if ((c >= 'A') && (c <= 'Z')) return c-'A'+10;
 }
 
 void token_hash(char content[100000], lld hash_array[100000], int *len){
@@ -122,9 +123,9 @@ void token_hash(char content[100000], lld hash_array[100000], int *len){
 int name_hash(char name[32]){
     int r = 0, i = 0;
     while (name[i]){
-        r *= 36;
-        r += transform(name[i]);
-        r = r % N_NAME_HASH;
+        r <<= 6;
+        r |= transform(name[i]);
+        r %= N_NAME_HASH;
         i++;
     }
     return r;
