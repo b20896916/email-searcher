@@ -98,7 +98,7 @@ void token_hash(char content[100000], lld hash_array[100000], int *len){
     lld hash = 0;
     for (int i = 0; i < 100000; i++){
         if (alpha_numeric(content[i])){
-            hash *= 36;
+            hash *= 37;
             hash = (hash + transform(content[i])) % 2021060687879487;
         }
         else{
@@ -147,8 +147,10 @@ inline void static init(int i){
 int find_set(int i){
     init(i);
     // TODO: Implement your find algorithm here
-    if (ds[i].p != i) ds[i].p = find_set(ds[i].p);
-    return ds[i].p;
+    // if (ds[i].p != i) ds[i].p = find_set(ds[i].p);
+    // return ds[i].p;
+    // sorry Brian, I have to make it uglier but faster
+    return (ds[i].p == i) ? (i) : (ds[i].p = find_set(ds[i].p));
 }
 
 void dslink(int ra, int rb){
