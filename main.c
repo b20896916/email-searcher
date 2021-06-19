@@ -1,3 +1,5 @@
+#pragma GCC optimize("O3", "unroll-loops")
+#pragma GCC target("avx", "avx2", "fma")
 #include "api.h"
 #include <stdio.h>
 
