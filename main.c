@@ -12,20 +12,29 @@ typedef struct mymail{
     lld* token;
 } mymail;
 
+typedef struct DisjointSet{
+    int p;
+    int size;
+} disjoint_set;
+
+#define N_NAME_HASH 23173
 int n_mails, n_queries;
 mail *mails;
 query *queries;
-mymail* mymails = (mymail*) malloc(sizeof(mymail) * 10000);
+mymail mymails[10000]; // mails after preprocessing
+disjoint_set ds[N_NAME_HASH]; // disjoint set
+bool set[N_NAME_HASH] = {};
+int n_cc, max_cc; // number of connected component, largest size of connected component
 
-int cmpfunc(const void* a, const void* b);
-bool alpha_numeric(char c);
-// return true iff c in /([A-Za-z0-9]+)/g
-int transform(char c);
-// map '0'-'9' to 0-9, 'a'-'z' and 'A'-'Z' to 10~35
-void token_hash (char content[100000], lld hash_array[100000], int *len);
-// hash content to hash_array, save token_num to len, need modifying to reduce complexity
-int name_hash(char name[32]);
-// not implemented
+int cmpfunc(const void* a, const void* b); // for qsort, type: lld
+bool alpha_numeric(char c); // return true iff c in /([A-Za-z0-9]+)/g
+int transform(char c); // map '0'-'9' to 0-9, 'a'-'z' and 'A'-'Z' to 10~35
+void token_hash(char content[100000], lld hash_array[100000], int *len); // hash content to hash_array, save token_num to len, need modifying to reduce complexity
+int name_hash(char name[32]); // hash name to 0-23172
+void makeset(int i);
+inline void static init(int i);
+int find_set(int i); // path compression
+void link(int ra, int rb); // union by size
 
 int main(){
     for (int i = 0; i < 10000; i++){
@@ -44,18 +53,27 @@ int main(){
         qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
     }
 
-    for(int i = 0; i < n_queries; i++)
+    for (int i = 0; i < n_queries; i++)
         if (queries[i].type == expression_match){
             // expression match
-            api.answer(queries[i].id, NULL, 0);
+            // api.answer(queries[i].id, NULL, 0);
         }
         else if (queries[i].type == find_similar){
             // find similar
-            api.answer(queries[i].id, NULL, 0);
+            // api.answer(queries[i].id, NULL, 0);
         }
         else{
             // group analyse
-            api.answer(queries[i].id, NULL, 0);
+            n_cc = 0; max_cc = 1;
+            for (int j = 0; j < N_NAME_HASH; j++){
+                ds[j].p = j;
+                ds[j].size = 1;
+            }
+            for (int k = 0; k < queries[i].data.group_analyse_data.len; k++){
+                link(mymails[queries[i].data.group_analyse_data.mids[k]].from, mymails[queries[i].data.group_analyse_data.mids[k]].to);
+            }
+            int ans[2] = {n_cc, max_cc};
+            api.answer(queries[i].id, ans, 2);
         }
     return 0;
 }
@@ -77,7 +95,7 @@ int transform(char c){
     if ((c >= 'A') && (c <= 'Z')) return c-'A'+10;
 }
 
-void token_hash (char content[100000], lld hash_array[100000], int *len){
+void token_hash(char content[100000], lld hash_array[100000], int *len){
     lld hash = 0;
     for (int i = 0; i < 100000; i++){
         if (alpha_numeric(content[i])){
@@ -99,5 +117,54 @@ void token_hash (char content[100000], lld hash_array[100000], int *len){
             hash = 0;
             if (content[i] == '\0') break;
         }
+    }
+}
+
+int name_hash(char name[32]){
+    int r = 0, i = 0;
+    while (name[i]){
+        r *= 36;
+        r += transform(name[i]);
+        r = r % N_NAME_HASH;
+        i++;
+    }
+    return r;
+}
+
+void makeset(int i){
+    // TODO: Initialize a set
+    ds[i].p = i;
+    ds[i].size = 1;
+    n_cc++;
+}
+
+inline void static init(int i){
+    if (!set[i]) {
+        makeset(i);
+        set[i] = 1;
+    }
+}
+
+int find_set(int i){
+    // TODO: Implement your find algorithm here
+    if (ds[i].p != i) ds[i].p = find_set(ds[i].p);
+    return ds[i].p;
+}
+
+void link(int ra, int rb){
+    // TODO: Implement your union algorithm here
+    int a = find_set(ra), b = find_set(rb);
+    if (a != b){
+        if (ds[a].size < ds[b].size){
+            ds[a].p = b;
+            ds[b].size += ds[a].size;
+            if (ds[b].size > max_cc) max_cc = ds[b].size;
+        }
+        else{
+            ds[b].p = a;
+            ds[a].size += ds[b].size;
+            if (ds[a].size > max_cc) max_cc = ds[a].size;
+        }
+        n_cc--;
     }
 }
