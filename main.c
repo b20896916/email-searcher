@@ -19,7 +19,7 @@ typedef struct DisjointSet{
     int size;
 } disjoint_set;
 
-#define N_NAME_HASH 18993
+#define N_NAME_HASH 19815
 int n_mails, n_queries;
 mail *mails;
 query *queries;
