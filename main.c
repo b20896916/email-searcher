@@ -2,6 +2,10 @@
 #pragma GCC target("avx", "avx2", "fma")
 #include "api.h"
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 // The testdata only contains the first 100 mails (mail1 ~ mail100)
 // and 2000 queries for you to debug.
@@ -24,6 +28,14 @@ typedef struct SetWithoutInitializing{
     lld* content;
     int* space;
 } hilset;
+
+typedef struct expr{
+    bool contain;
+    char word[30];
+    struct expr *prev;
+    struct expr *next;
+    int hash_value;
+}expr;
 
 #define N_NAME_HASH 19815
 #define N_TOKEN_HASH 1000000000000037
@@ -49,6 +61,13 @@ void dslink(int ra, int rb); // union by size
 void hilinit(); // initializing
 void hilreset(); // malloc a space for content (can be given to mymail) and set size to 0
 void hiladd(lld x); // add x to a
+
+int priority(expr *temp); // to see the priority of expr ('(' ')' > '!' > '|' '&')
+expr *alloc_expr(); // to create a new expr
+expr *linked_list_one(char expression[]); // transfrom expression into a linked list
+expr *linked_list_two(expr *head); // transform linked list into postfix type (like hw1 calculator)
+bool contained(char content[], expr *head); // return true iff the content contains the expression
+void test_expr(expr *head); // only for debug
 
 int main(){
     hilinit();
@@ -84,7 +103,17 @@ int main(){
     for (int i = 0; i < n_queries; i++) {
         if (queries[i].type == expression_match){
             // expression match
-            // api.answer(queries[i].id, NULL, 0);
+            expr *head = linked_list_one(queries[i].data.expression_match_data.expression);
+            head = linked_list_two(head);
+            int ans[n_mails];
+            int len = 0;
+            for (int j=0 ; j<n_mails ; j++){
+                if (contained(mails[i].content,head)){
+                    ans[len] = j;
+                    len ++;
+                }
+            }
+            api.answer(queries[i].id, ans, len);
         }
         else if (queries[i].type == find_similar){
             // find similar
@@ -217,4 +246,219 @@ void hiladd(lld x){
 
     hashset.content[hashset.size] = x;
     hashset.space[x] = hashset.size++;
+}
+
+int priority(expr *temp){
+    if (temp == NULL) return 5;
+    if ((temp -> word[0] == '(') || (temp -> word[0] == ')')) return 4;
+    if (temp -> word[0] == '!') return 2;
+    if ((temp -> word[0] == '&') || (temp -> word[0] == '|')) return 1;
+    return 3;
+}
+
+expr *alloc_expr(){
+    expr *temp = (expr *)malloc(sizeof(expr));
+    for (int i=0;i<30;i++){
+        temp -> word[i] = '\0';
+    }
+    temp -> next = NULL;
+    temp -> contain = false;
+    return temp;
+}
+
+expr *linked_list_one(char expression[]){
+    expr *head, *tail, *new;
+    int digit = 1;
+    unsigned long int len = strlen(expression);
+    for (unsigned long int i=0;i<len;i++){
+        if (i == 0){
+            tail = alloc_expr();
+            tail -> word[0] = expression[i];
+            head = tail;
+            tail -> prev = NULL;
+        }else if ((alpha_numeric(expression[i])) && (alpha_numeric(expression[i-1]))){
+            tail -> word[digit] = expression[i];
+            digit ++;
+        }else{
+            new = alloc_expr();
+            new -> word[0] = expression[i];
+            tail -> next = new;
+            new -> prev = tail;
+            tail = new;
+            digit = 1;
+        }
+    }
+//TO DO: complete hash funtion.
+    expr *temp = head;
+    while (temp != NULL){
+        if (alpha_numeric(temp -> word[0])) temp -> hash_value = 1111111; //To be changed
+        temp = temp -> next;
+    }
+    return head;
+}
+
+expr *linked_list_two(expr *head){
+    expr *tail, *temp = head;
+    expr *prisonhead = NULL, *prisontail = NULL;
+    while (temp != NULL){
+        expr *new = temp -> next;
+        if (alpha_numeric(temp -> word[0])){
+            if (temp != head){
+                tail -> next = temp;
+                temp -> prev = tail;
+            }else{
+                temp -> prev = NULL;
+            }
+            temp -> next = NULL;
+            tail = temp;
+            while (priority(prisontail) <= priority(tail)){
+                expr *prev = prisontail -> prev;
+                tail -> next = prisontail;
+                prisontail -> next = NULL;
+                prisontail -> prev = tail;
+                tail = prisontail;
+                if (prev != NULL) prev -> next = NULL;
+                prisontail = prev;
+            }
+            if (prisontail == NULL) prisonhead = NULL;
+        }else{
+            if (temp == head){
+                head = head -> next;
+            }
+            if (prisonhead == NULL){
+                prisonhead = temp;
+                prisontail = temp;
+                temp -> prev = NULL;
+                temp -> next = NULL;
+            }else{
+                if (temp -> word[0] == ')'){
+                    free(temp);
+                    while (tail -> word[0] != '('){
+                        expr *prev = prisontail -> prev;
+                        if (tail != NULL) tail -> next = prisontail;
+                        prisontail -> next = NULL;
+                        prisontail -> prev = tail;
+                        tail = prisontail;
+                        if (prev != NULL) prev -> next = NULL;
+                        prisontail = prev;
+                    }
+                    if (prisontail == NULL){
+                        prisonhead = NULL;
+                    }
+                    int x = 0;
+                    do{
+                        if (x == 0){
+                            expr *previous = tail -> prev;
+                            free (tail);
+                            tail = previous;
+                            if (previous != NULL) previous -> next = NULL;
+                            if (priority(prisontail) > priority(tail)){
+                                break;
+                            }
+                        }
+                        expr *prev = prisontail -> prev;
+                        tail -> next = prisontail;
+                        prisontail -> next = NULL;
+                        prisontail -> prev = tail;
+                        tail = prisontail;
+                        if (prev != NULL) prev -> next = NULL;
+                        prisontail = prev;
+                        x ++;
+                    } while (priority(prisontail) <= priority(tail));
+                    if (prisontail == NULL) prisonhead = NULL;
+                }else{
+                    prisontail -> next = temp;
+                    temp -> prev = prisontail;
+                    temp -> next = NULL;
+                    prisontail = temp;
+                }
+            }
+        }
+        temp = new;
+    }
+    while (prisontail != NULL){
+        expr *prev = prisontail -> prev;
+        tail -> next = prisontail;
+        prisontail -> prev = tail;
+        prisontail -> next = NULL;
+        tail = prisontail;
+        prisontail = prev;
+    }
+    return head;
+}
+
+bool contained(char content[], expr *head){
+    // TO DO : how to see if content contains a token?
+    expr *temp1 = head;
+    temp1 -> contain = true; // to be changed. true iff content contains temp1 -> word
+    expr *temp2 = temp1 -> next;
+    while ((temp2 != NULL) && (temp2 -> word[0] == '!')){
+        temp2 = temp2 -> next;
+        temp1 -> next = temp2;
+        if (temp2 != NULL) temp2 -> prev = temp1;
+        temp1 -> contain = !(temp1 -> contain);
+    }
+    expr *temp3;
+    if (temp2 == NULL){
+        temp3 = NULL;
+    }else{
+        temp3 = temp2 -> next;
+        temp2 -> contain = true; // to be changed. true iff content contains temp1 -> word
+    }
+    while (temp3 != NULL){
+        if (alpha_numeric(temp3 -> word[0])){
+            temp3 -> contain = true; // to be changed. true iff it contains temp1 -> word
+            temp1 = temp1 -> next;
+            temp2 = temp2 -> next;
+            temp3 = temp3 -> next;
+        }else if (temp3 -> word[0] == '!'){
+            temp2 -> contain = !(temp2 -> contain);
+            temp3 = temp3 -> next;
+            free (temp2 -> next);
+            temp2 -> next = temp3;
+            if (temp3 != NULL) temp3 -> prev = temp2;
+        }else{
+            if (temp3 -> word[0] == '&'){
+                temp2 -> contain = (temp1 -> contain) & (temp2 -> contain);
+            }else if (temp3 -> word[0] == '|'){
+                temp2 -> contain = (temp2 -> contain) | (temp2 -> contain);
+            }
+            if (temp1 == head){
+                temp1 = temp1 -> next;
+                temp2 = temp2 -> next -> next;
+                if (temp3 -> next != NULL) temp3 = temp3 -> next -> next;
+                else temp3 = NULL;
+                free(head);
+                head = temp1;
+                free(temp1 -> next);
+                temp1 -> next = temp2;
+                if (temp2 != NULL) temp2 -> prev = temp1;
+            }else{
+                temp1 = temp1 -> prev;
+                temp3 = temp3 -> next;
+                free(temp1 -> next);
+                temp1 -> next = temp2;
+                temp2 -> prev = temp1;
+                free(temp3 -> prev);
+                temp3 -> prev = temp2;
+                temp2 -> next = temp3;
+            }
+        }
+    }
+    bool answer = temp1 -> contain;
+    while (head != NULL){
+        expr *temp = head -> next;
+        free(head);
+        head = temp;
+    }
+    return answer;
+}
+
+void test_expr(expr *head){
+    expr *temp = head;
+    while (temp != NULL){
+        printf ("%s ",temp -> word);
+        temp = temp -> next;
+    }
+    printf ("\n");
 }
