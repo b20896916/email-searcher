@@ -46,18 +46,17 @@ void makeset(int i);
 inline void static init(int i);
 int find_set(int i); // path compression
 void dslink(int ra, int rb); // union by size
-void hilinit(hilset* a); // initializing
-void hilreset(hilset* a); // malloc a space for content (can be given to mymail) and set size to 0
-void hiladd(hilset* a, lld x); // add x to a
+void hilinit(); // initializing
+void hilreset(); // malloc a space for content (can be given to mymail) and set size to 0
+void hiladd(lld x); // add x to a
 
 int main(){
-    hilset* hashspace = &hashset;
-    hilinit(hashspace);
+    hilinit();
     
     api.init(&n_mails, &n_queries, &mails, &queries);
 
     for (int i = 0; i < n_mails; i++){
-        hilreset(hashspace);
+        hilreset();
         int idx = mails[i].id, shift = 0;
         mymails[idx].from = name_hash(mails[i].from);
         mymails[idx].to = name_hash(mails[i].to);
@@ -65,7 +64,7 @@ int main(){
             if (isalnum(mails[i].subject[shift])){
                 lld hashvalue;
                 shift += token_hash(mails[i].subject+shift, &hashvalue);
-                hiladd(hashspace, hashvalue);
+                hiladd(hashvalue);
             }
             shift++;
         }
@@ -73,12 +72,12 @@ int main(){
             if (isalnum(mails[i].content[shift])){
                 lld hashvalue;
                 shift += token_hash(mails[i].content+shift, &hashvalue);
-                hiladd(hashspace, hashvalue);
+                hiladd(hashvalue);
             }
             shift++;
         }
-        mymails[idx].token = hashspace->content;
-        mymails[idx].token_num = hashspace->size;
+        mymails[idx].token = hashset.content;
+        mymails[idx].token_num = hashset.size;
         qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
     }
 
@@ -204,18 +203,18 @@ void dslink(int ra, int rb){
     }
 }
 
-inline void hilinit(hilset* a){
-    a->space = (int*) malloc(sizeof(int) * N_TOKEN_HASH);
+inline void hilinit(){
+    hashset.space = (int*) malloc(sizeof(int) * N_TOKEN_HASH);
 }
 
-void hilreset(hilset* a){
-    a->content = (lld*) malloc(sizeof(lld) * N_TOKEN_MAIL);
-    a->size = 0;
+void hilreset(){
+    hashset.content = (lld*) malloc(sizeof(lld) * N_TOKEN_MAIL);
+    hashset.size = 0;
 }
 
-void hiladd(hilset* a, lld x){
-    if (a->space[x] < a->size && a->content[a->space[x]] == x) return;
+void hiladd(lld x){
+    if (hashset.space[x] < hashset.size && hashset.content[hashset.space[x]] == x) return;
 
-    a->content[a->size] = x;
-    a->space[x] = a->size++;
+    hashset.content[hashset.size] = x;
+    hashset.space[x] = hashset.size++;
 }
