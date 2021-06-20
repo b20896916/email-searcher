@@ -125,7 +125,7 @@ void token_hash(char content[100000], lld hash_array[100000], int *len){
 int name_hash(char name[32]){
     int r = 0, i = 0;
     while (name[i]){
-        r <<= 6;
+        r <<= 7;
         r |= name[i];
         r %= N_NAME_HASH;
         i++;
