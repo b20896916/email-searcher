@@ -19,7 +19,15 @@ typedef struct DisjointSet{
     int size;
 } disjoint_set;
 
+typedef struct SetWithoutInitializing{
+    int size;
+    lld* content;
+    int* space;
+} hilset;
+
 #define N_NAME_HASH 19815
+#define N_TOKEN_HASH 1000000000000037
+#define N_TOKEN_MAIL 3500
 int n_mails, n_queries;
 mail *mails;
 query *queries;
@@ -27,33 +35,51 @@ mymail mymails[10000]; // mails after preprocessing
 disjoint_set ds[N_NAME_HASH]; // disjoint set
 bool set[N_NAME_HASH];
 int n_cc, max_cc; // number of connected component, largest size of connected component
+hilset hashset;
 
-int cmpfunc(const void* a, const void* b); // for qsort, type: lld
-bool alpha_numeric(char c); // return true iff c in /([A-Za-z0-9]+)/g
+int cmpfunc(const void* a, const void* b); // for qsort, type: int
+bool isalnum(char c); // return true iff c in /([A-Za-z0-9]+)/g
 inline int transform(char c); // map '0'-'9' to 0-9, 'a'-'z' and 'A'-'Z' to 10~35
-void token_hash(char content[100000], lld hash_array[100000], int *len); // hash content to hash_array, save token_num to len, need modifying to reduce complexity
-int name_hash(char name[32]); // hash name to 0-23172
+int token_hash(char* content, lld* hashvalue); // hash content to hash_array, save token_num to len, need modifying to reduce complexity
+int name_hash(char name[32]); // hash name to 0-19814
 void makeset(int i);
 inline void static init(int i);
 int find_set(int i); // path compression
 void dslink(int ra, int rb); // union by size
+void hilinit(hilset* a); // initializing
+void hilreset(hilset* a); // malloc a space for content (can be given to mymail) and set size to 0
+void hiladd(hilset* a, lld x); // add x to a
 
 int main(){
-    /*
-    for (int i = 0; i < 10000; i++){
-        mymails[i].token = (lld*) malloc(sizeof(lld) * 100000);
-        mymails[i].token_num = 0;
-    }
-    */
+    hilset* hashspace = &hashset;
+    hilinit(hashspace);
+    
     api.init(&n_mails, &n_queries, &mails, &queries);
 
     for (int i = 0; i < n_mails; i++){
-        int idx = mails[i].id;
+        hilreset(hashspace);
+        int idx = mails[i].id, shift = 0;
         mymails[idx].from = name_hash(mails[i].from);
         mymails[idx].to = name_hash(mails[i].to);
-        // token_hash(mails[i].subject, mymails[idx].token, &mymails[idx].token_num);
-        // token_hash(mails[i].content, mymails[idx].token, &mymails[idx].token_num);
-        // qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
+        while (mails[i].subject[shift]){
+            if (isalnum(mails[i].subject[shift])){
+                lld hashvalue;
+                shift += token_hash(mails[i].subject+shift, &hashvalue);
+                hiladd(hashspace, hashvalue);
+            }
+            shift++;
+        }
+        while (mails[i].content[shift]){
+            if (isalnum(mails[i].content[shift])){
+                lld hashvalue;
+                shift += token_hash(mails[i].content+shift, &hashvalue);
+                hiladd(hashspace, hashvalue);
+            }
+            shift++;
+        }
+        mymails[idx].token = hashspace->content;
+        mymails[idx].token_num = hashspace->size;
+        qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
     }
 
     for (int i = 0; i < n_queries; i++) {
@@ -84,7 +110,7 @@ int cmpfunc(const void* a, const void* b){
     return (*(lld*) a - *(lld*) b);
 }
 
-bool alpha_numeric(char c){
+bool isalnum(char c){
     if ((c >= '0') && (c <= '9')) return true;
     if ((c >= 'a') && (c <= 'z')) return true;
     if ((c >= 'A') && (c <= 'Z')) return true;
@@ -97,29 +123,33 @@ inline int transform(char c){
     if ((c >= 'A') && (c <= 'Z')) return c-'A'+10;
 }
 
-void token_hash(char content[100000], lld hash_array[100000], int *len){
-    lld hash = 0;
-    for (int i = 0; i < 100000; i++){
-        if (alpha_numeric(content[i])){
-            hash *= 36;
-            hash = (hash + transform(content[i])) % 2021060687879487;
+int token_hash(char* content, lld* hashvalue){
+    static char S[9][4] = {"20", "c0", "170", "kz", "nz", "6z", "140", "k0", "g0"};
+    int j;
+    for (int i = 0; i < 9; i++){
+        bool same = 1;
+        for (j = 0; j < 4; j++){
+            if ( !( S[i][j] || isalnum(content[j]) ) ) break;
+            if (content[j] != S[i][j]){
+                same = 0;
+                break;
+            }
         }
-        else{
-            bool repeated = false;
-            for (int j = 0; j < *len; j++){
-                if (hash == hash_array[j]){
-                    repeated = true;
-                    break;
-                }
-            }
-            if ((!repeated) && (hash != 0)){
-                hash_array[*len] = hash;
-                *len = *len + 1;
-            }
-            hash = 0;
-            if (content[i] == '\0') break;
+        if (same){
+            *hashvalue = i;
+            return j;
         }
     }
+    j = 0;
+    lld sum = 0;
+    while (isalnum(content[j])){
+        sum *= 37;
+        sum += transform(content[j]);
+        sum %= N_TOKEN_HASH;
+        j++;
+    }
+    *hashvalue = sum;
+    return j;
 }
 
 int name_hash(char name[32]){
@@ -172,4 +202,20 @@ void dslink(int ra, int rb){
         }
         n_cc--;
     }
+}
+
+inline void hilinit(hilset* a){
+    a->space = (int*) malloc(sizeof(int) * N_TOKEN_HASH);
+}
+
+void hilreset(hilset* a){
+    a->content = (lld*) malloc(sizeof(lld) * N_TOKEN_MAIL);
+    a->size = 0;
+}
+
+void hiladd(hilset* a, lld x){
+    if (a->space[x] < a->size && a->content[a->space[x]] == x) return;
+
+    a->content[a->size] = x;
+    a->space[x] = a->size++;
 }
