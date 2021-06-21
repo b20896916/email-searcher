@@ -11,6 +11,7 @@ typedef struct token{
 
 int trans(char c);
 unsigned int hash(token* c, int base);
+unsigned int weirdhash(token* c, int base);
 int cmpfunc(const void* a, const void* b) {return (*(unsigned int*) a - *(unsigned int*) b);}
 
 
@@ -36,12 +37,12 @@ int main(){
 
     printf("%d\n", col);
 
-    int rehash_base = 2;
-    while (rehash_base < N_TOKEN_HASH){
+    int rehash_base = 1000000;
+    while (rehash_base < 10000000){
         int T[600];
         int tlen = 0;
         for (int i = 0; i < col; i++){
-            unsigned int h = hash(tokens+collision[i], rehash_base);// + hash(tokens+collision[i], N_TOKEN_HASH);
+            unsigned int h = weirdhash(tokens+collision[i], rehash_base) + hash(tokens+collision[i], N_TOKEN_HASH);
             if (!appeared[h]){
                 T[tlen++] = h;
             }
@@ -71,6 +72,19 @@ unsigned int hash(token* c, int base){
     for (int i = 0; i < c->len; i++){
         r *= 37;
         r += trans(c->content[i]);
+        r %= base;
+    }
+    return r;
+}
+
+unsigned int weirdhash(token* c, int base){
+    unsigned int r = 0;
+    for (int i = 0; i < c->len; i++){
+        r *= 37;
+        r += trans(c->content[i]);
+        r %= base;
+        r *= 37;
+        r += 25;
         r %= base;
     }
     return r;
