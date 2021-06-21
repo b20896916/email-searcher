@@ -47,7 +47,7 @@ int main(){
             }
             else break;
         }
-        if (tlen == 506){
+        if (tlen == col){
             qsort(T, tlen, sizeof(unsigned int), cmpfunc);
             int collisionagain = 0;
             for (int i = 0; i < tlen-1; i++){
