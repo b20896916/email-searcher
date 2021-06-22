@@ -31,10 +31,10 @@ typedef struct hilset{
 
 typedef struct expr{
     bool contain;
-    char word[30];
+    char word[53];
     struct expr *prev;
     struct expr *next;
-    int hash_value;
+    lld hash_value;
 }expr;
 
 #define N_NAME_HASH 19815
@@ -108,7 +108,7 @@ int main(){
             int ans[n_mails];
             int len = 0;
             for (int j=0 ; j<n_mails ; j++){
-                if (contained(mymails[j].content,head)){
+                if (contained(mymails[j],head)){
                     ans[len] = j;
                     len ++;
                 }
@@ -291,7 +291,11 @@ expr *linked_list_one(char expression[]){
 //TO DO: complete hash funtion.
     expr *temp = head;
     while (temp != NULL){
-        if (isalnum(temp -> word[0])) temp -> hash_value = 1111111; //To be changed
+        if (isalnum(temp -> word[0])){
+            lld hashvalue;
+            int len = token_hash(temp -> word, &hashvalue);
+            temp -> hash_value = hashvalue;
+        }
         temp = temp -> next;
     }
     return head;
@@ -387,10 +391,10 @@ expr *linked_list_two(expr *head){
     return head;
 }
 
-bool contained(char content[], expr *head){
-    // TO DO : how to see if content contains a token?
+bool contained(mymail content, expr *head){
+    // TO DO : HERE : true iff temp1(2)(3) -> hash_value can be found in content -> token.
     expr *temp1 = head;
-    temp1 -> contain = true; // to be changed. true iff content contains temp1 -> word
+    temp1 -> contain = true; // HERE
     expr *temp2 = temp1 -> next;
     while ((temp2 != NULL) && (temp2 -> word[0] == '!')){
         temp2 = temp2 -> next;
@@ -403,11 +407,11 @@ bool contained(char content[], expr *head){
         temp3 = NULL;
     }else{
         temp3 = temp2 -> next;
-        temp2 -> contain = true; // to be changed. true iff content contains temp1 -> word
+        temp2 -> contain = true; // HERE
     }
     while (temp3 != NULL){
         if (isalnum(temp3 -> word[0])){
-            temp3 -> contain = true; // to be changed. true iff it contains temp1 -> word
+            temp3 -> contain = true; // HERE
             temp1 = temp1 -> next;
             temp2 = temp2 -> next;
             temp3 = temp3 -> next;
