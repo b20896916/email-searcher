@@ -66,12 +66,12 @@ int priority(expr *temp); // to see the priority of expr ('(' ')' > '!' > '|' '&
 expr *alloc_expr(); // to create a new expr
 expr *linked_list_one(char expression[]); // transfrom expression into a linked list
 expr *linked_list_two(expr *head); // transform linked list into postfix type (like hw1 calculator)
-bool contained(char content[], expr *head); // return true iff the content contains the expression
+bool in_article(mymail content, lld hash_value); // return true iff the content of mail contains the word(hash_value)
+bool contained(mymail content, expr *head); // return true iff the content of mail contains the expression
 void test_expr(expr *head); // only for debug
 
 int main(){
     hilinit();
-    
     api.init(&n_mails, &n_queries, &mails, &queries);
 
     for (int i = 0; i < n_mails; i++){
@@ -288,7 +288,6 @@ expr *linked_list_one(char expression[]){
             digit = 1;
         }
     }
-//TO DO: complete hash funtion.
     expr *temp = head;
     while (temp != NULL){
         if (isalnum(temp -> word[0])){
@@ -391,10 +390,33 @@ expr *linked_list_two(expr *head){
     return head;
 }
 
+bool in_article(mymail content, lld hash_value){
+    int left = 0, right = content.token_num - 1;
+    if ((content.token[right] < hash_value) || (content.token[left] > hash_value)){
+        return false;
+    }
+    if ((content.token[right] == hash_value) || (content.token[left] == hash_value)){
+        return true;
+    }
+    while (right - left > 1){
+        int middle = (right - left) / 2;
+        if (content.token[middle] == hash_value){
+            return true;
+        }else if (content.token[middle] > hash_value){
+            right = middle;
+        }else{
+            left = middle;
+        }
+    }
+    if ((content.token[right] != hash_value) && (content.token[left] != hash_value)){
+        return false;
+    }
+    return true;
+}
+
 bool contained(mymail content, expr *head){
-    // TO DO : HERE : true iff temp1(2)(3) -> hash_value can be found in content -> token.
     expr *temp1 = head;
-    temp1 -> contain = true; // HERE
+    temp1 -> contain = in_article(content,temp1 -> hash_value);
     expr *temp2 = temp1 -> next;
     while ((temp2 != NULL) && (temp2 -> word[0] == '!')){
         temp2 = temp2 -> next;
@@ -407,11 +429,11 @@ bool contained(mymail content, expr *head){
         temp3 = NULL;
     }else{
         temp3 = temp2 -> next;
-        temp2 -> contain = true; // HERE
+        temp2 -> contain = in_article(content,temp2 -> hash_value);
     }
     while (temp3 != NULL){
         if (isalnum(temp3 -> word[0])){
-            temp3 -> contain = true; // HERE
+            temp3 -> contain = in_article(content,temp3 -> hash_value);
             temp1 = temp1 -> next;
             temp2 = temp2 -> next;
             temp3 = temp3 -> next;
