@@ -1,0 +1,50 @@
+\documentclass{article}
+\usepackage{CJKutf8}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{array}
+
+% Note that you can only edit the content but not the page format
+% Please modified below brackets with your team's information.
+\def \teamno {0}
+\def \teammembers {B09902005, B09902013, B09902096}
+\def \bestranking {??}
+\def \bestscore {?????.??}
+
+\geometry{
+    a4paper,
+    total={7in, 9.5in},
+    top=1.1in
+}
+
+\renewcommand{\footrulewidth}{0.4pt}
+\fontfamily{charter}\selectfont
+\pagenumbering{gobble}
+\linespread{1.2}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Team No.\teamno}
+\lhead{DSA Final Project Report}
+\lfoot{Ranking: \bestranking \quad Score: \bestscore}
+\rfoot{\teammembers}
+
+% If you want to use Chinese, then you need to wrap the Chinese content with \begin{CJK}{UTF8}{bsmi} and \end{CJK}
+% For example: \begin{CJK}{UTF8}{bsmi} 中文內容 \end{CJK}
+
+\begin{document}
+
+\section*{Data Structures \& Algorithms}
+Explain what data structures and algorithms you used and why you choose to use them.
+
+\section*{Cost Estimations of Queries}
+Provide and compare the cost estimation of your implementation on each types of queries. Using a table to show difference is encouraged.
+
+\section*{Scheduling Strategy}
+Describe how you design the strategy to answer queries. Does your strategy work as well as you imagined? If (not) so, why?
+
+\section*{Additional Notes (*optinal)}
+Supply any other efforts/findings you have tried/discovered that (may) improves your implementation.
+
+\end{document}
