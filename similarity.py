@@ -63,7 +63,7 @@ int main(){""")
     for i in range(10000):
         for j in range(i+1, 10000):
             sim = len(a[i]&a[j]) / len(a[i]|a[j])
-            code.write("    similarity[i][j] = "+str(sim)+" ;")
+            code.write("    similarity[" + str(i) + "][" + str(j) + "] = "+str(sim)+" ;")
     code.write("api.init(&n_mails, &n_queries, &mails, &queries);")
 
     code.write("""for (int i = 0; i < n_mails; i++){
