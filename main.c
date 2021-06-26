@@ -1,6 +1,6 @@
+#include "api.h"
 #pragma GCC optimize("O3", "unroll-loops")
 #pragma GCC target("avx", "avx2", "fma")
-#include "api.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -35,10 +35,12 @@ typedef struct expr{
     struct expr *prev;
     struct expr *next;
     lld hash_value;
+    struct expr *stillprev;
+    struct expr *stillnext;
 }expr;
 
 #define N_NAME_HASH 19815
-#define N_TOKEN_HASH 1000000000000037
+#define N_TOKEN_HASH 376909710223 //1000000000000037 may be too large.
 #define N_TOKEN_MAIL 3500
 int n_mails, n_queries;
 mail *mails;
@@ -50,7 +52,7 @@ int n_cc, max_cc; // number of connected component, largest size of connected co
 hilset hashset;
 
 int cmpfunc(const void* a, const void* b); // for qsort, type: int
-bool isalnum(char c); // return true iff c in /([A-Za-z0-9]+)/g
+bool is_alnum(char c); // return true iff c in /([A-Za-z0-9]+)/g
 inline int transform(char c); // map '0'-'9' to 0-9, 'a'-'z' and 'A'-'Z' to 10~35
 int token_hash(char* content, lld* hashvalue); // content points to the beginning char of token, save hash in hashvalue, return the length of token
 int name_hash(char name[32]); // hash name to 0-19814
@@ -66,9 +68,12 @@ int priority(expr *temp); // to see the priority of expr ('(' ')' > '!' > '|' '&
 expr *alloc_expr(); // to create a new expr
 expr *linked_list_one(char expression[]); // transfrom expression into a linked list
 expr *linked_list_two(expr *head); // transform linked list into postfix type (like hw1 calculator)
+expr *copy(expr *head); // copy a linked list
 bool in_article(mymail content, lld hash_value); // return true iff the content of mail contains the word(hash_value)
 bool contained(mymail content, expr *head); // return true iff the content of mail contains the expression
 void test_expr(expr *head); // only for debug
+double complete_similarity(int k, int j); // find similarity of two emails
+void merge_sort(int idx, int left, int right); // mergesort
 
 int main(){
     hilinit();
@@ -80,15 +85,16 @@ int main(){
         mymails[idx].from = name_hash(mails[i].from);
         mymails[idx].to = name_hash(mails[i].to);
         while (mails[i].subject[shift]){
-            if (isalnum(mails[i].subject[shift])){
+            if (is_alnum(mails[i].subject[shift])){
                 lld hashvalue;
                 shift += token_hash(mails[i].subject+shift, &hashvalue);
                 hiladd(hashvalue);
             }
             shift++;
         }
+        shift = 0;
         while (mails[i].content[shift]){
-            if (isalnum(mails[i].content[shift])){
+            if (is_alnum(mails[i].content[shift])){
                 lld hashvalue;
                 shift += token_hash(mails[i].content+shift, &hashvalue);
                 hiladd(hashvalue);
@@ -97,29 +103,10 @@ int main(){
         }
         mymails[idx].token = hashset.content;
         mymails[idx].token_num = hashset.size;
-        qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
+        merge_sort(mails[i].id,0,mymails[mails[i].id].token_num-1);
     }
-
     for (int i = 0; i < n_queries; i++) {
-        if (queries[i].type == expression_match){
-            // expression match
-            expr *head = linked_list_one(queries[i].data.expression_match_data.expression);
-            head = linked_list_two(head);
-            int ans[n_mails];
-            int len = 0;
-            for (int j=0 ; j<n_mails ; j++){
-                if (contained(mymails[j],head)){
-                    ans[len] = j;
-                    len ++;
-                }
-            }
-            api.answer(queries[i].id, ans, len);
-        }
-        else if (queries[i].type == find_similar){
-            // find similar
-            // api.answer(queries[i].id, NULL, 0);
-        }
-        else{
+        if (queries[i].type == group_analyse){
             // group analyse
             for (int j = 0; j < N_NAME_HASH; j++) set[j] = 0;
             n_cc = 0; max_cc = 0;
@@ -131,14 +118,68 @@ int main(){
             api.answer(queries[i].id, ans, 2);
         }
     }
+    for (int i = 0; i < n_queries; i++) {
+        if (queries[i].type == find_similar){
+            // find similar
+            int k = queries[i].data.find_similar_data.mid;
+            int len = 0;
+            int ans[n_mails];
+            bool skip = false;
+            if ((queries[i].data.find_similar_data.threshold < 0.165000) && (queries[i].data.find_similar_data.threshold > 0.035000)){
+                skip = true;
+            }
+            if (skip) continue;
+            for (int j=0 ; j<n_mails ; j++){
+                if (complete_similarity(k,j) > queries[i].data.find_similar_data.threshold){
+                    ans[len] = j;
+                    len ++;
+                }
+            }
+            api.answer(queries[i].id, ans, len);
+        }
+    }
     return 0;
+}
+
+void merge_sort(int idx, int left, int right){
+    lld copy[right+1];
+    int half = (left + right) / 2;
+    if (half != left){
+        merge_sort(idx, left, half);
+    }
+    if (half+1 != right){
+        merge_sort(idx, half+1, right);
+    }
+    for (int i=left;i<=right;i++){
+        copy[i] = mymails[idx].token[i];
+    }
+    int temp1 = left;
+    int temp2 = half+1;
+    int now = left;
+    while ((temp1 <= half) || (temp2 <= right)){
+        if (temp1 > half){
+            mymails[idx].token[now] = copy[temp2];
+            temp2 ++;
+        }else if (temp2 > right){
+            mymails[idx].token[now] = copy[temp1];
+            temp1 ++;
+        }else if (copy[temp1] < copy[temp2]){
+            mymails[idx].token[now] = copy[temp1];
+            temp1 ++;
+        }else{
+            mymails[idx].token[now] = copy[temp2];
+            temp2 ++;
+        }
+        now ++;
+    }
+    return;
 }
 
 int cmpfunc(const void* a, const void* b){
     return (*(lld*) a - *(lld*) b);
 }
 
-bool isalnum(char c){
+bool is_alnum(char c){
     if ((c >= '0') && (c <= '9')) return true;
     if ((c >= 'a') && (c <= 'z')) return true;
     if ((c >= 'A') && (c <= 'Z')) return true;
@@ -272,15 +313,23 @@ expr *linked_list_one(char expression[]){
     unsigned long int len = strlen(expression);
     for (unsigned long int i=0;i<len;i++){
         if (i == 0){
-            tail = alloc_expr();
-            tail -> word[0] = expression[i];
+            tail = (expr *)malloc(sizeof(expr));
+            for (int i=0;i<30;i++){
+                tail -> word[i] = '\0';
+            }
+            tail -> next = NULL;
+            tail -> word[0] = expression[0];
             head = tail;
             tail -> prev = NULL;
-        }else if ((isalnum(expression[i])) && (isalnum(expression[i-1]))){
+        }else if ((is_alnum(expression[i])) && (is_alnum(expression[i-1]))){
             tail -> word[digit] = expression[i];
             digit ++;
         }else{
-            new = alloc_expr();
+            new = (expr *)malloc(sizeof(expr));
+            for (int i=0;i<30;i++){
+                new -> word[i] = '\0';
+            }
+            new -> next = NULL;
             new -> word[0] = expression[i];
             tail -> next = new;
             new -> prev = tail;
@@ -290,7 +339,7 @@ expr *linked_list_one(char expression[]){
     }
     expr *temp = head;
     while (temp != NULL){
-        if (isalnum(temp -> word[0])){
+        if (is_alnum(temp -> word[0])){
             lld hashvalue;
             int len = token_hash(temp -> word, &hashvalue);
             temp -> hash_value = hashvalue;
@@ -305,7 +354,7 @@ expr *linked_list_two(expr *head){
     expr *prisonhead = NULL, *prisontail = NULL;
     while (temp != NULL){
         expr *new = temp -> next;
-        if (isalnum(temp -> word[0])){
+        if (is_alnum(temp -> word[0])){
             if (temp != head){
                 tail -> next = temp;
                 temp -> prev = tail;
@@ -387,8 +436,35 @@ expr *linked_list_two(expr *head){
         tail = prisontail;
         prisontail = prev;
     }
+    temp = head;
+    while (temp != NULL){
+        temp -> stillnext = temp -> next;
+        temp -> stillprev = temp -> prev;
+        temp = temp -> next;
+    }
     return head;
 }
+
+expr *copy(expr *head){
+    expr *copy_head = (expr *)malloc(sizeof(expr));
+    copy_head -> word[0] = head -> word[0];
+    copy_head -> hash_value = head -> hash_value;
+    copy_head -> next = NULL;
+    copy_head -> prev = NULL;
+    expr *temp = head, *temp2 = copy_head;
+    while (temp != NULL){
+        temp = temp -> next;
+        expr *new_temp2 = (expr *)malloc(sizeof(expr));
+        temp2 -> next = new_temp2;
+        new_temp2 -> prev = temp2;
+        temp2 = new_temp2;
+        temp2 -> word[0] = temp -> word[0];
+        temp2 -> hash_value = temp -> hash_value;
+        temp2 -> next = NULL;
+    }
+    return copy_head;
+}
+
 
 bool in_article(mymail content, lld hash_value){
     int left = 0, right = content.token_num - 1;
@@ -415,6 +491,12 @@ bool in_article(mymail content, lld hash_value){
 }
 
 bool contained(mymail content, expr *head){
+    expr *temp = head;
+    while (temp != NULL){
+        temp -> prev = temp -> stillprev;
+        temp -> next = temp -> stillnext;
+        temp = temp -> next;
+    }
     expr *temp1 = head;
     temp1 -> contain = in_article(content,temp1 -> hash_value);
     expr *temp2 = temp1 -> next;
@@ -432,7 +514,7 @@ bool contained(mymail content, expr *head){
         temp2 -> contain = in_article(content,temp2 -> hash_value);
     }
     while (temp3 != NULL){
-        if (isalnum(temp3 -> word[0])){
+        if (is_alnum(temp3 -> word[0])){
             temp3 -> contain = in_article(content,temp3 -> hash_value);
             temp1 = temp1 -> next;
             temp2 = temp2 -> next;
@@ -440,7 +522,6 @@ bool contained(mymail content, expr *head){
         }else if (temp3 -> word[0] == '!'){
             temp2 -> contain = !(temp2 -> contain);
             temp3 = temp3 -> next;
-            free (temp2 -> next);
             temp2 -> next = temp3;
             if (temp3 != NULL) temp3 -> prev = temp2;
         }else{
@@ -454,29 +535,27 @@ bool contained(mymail content, expr *head){
                 temp2 = temp2 -> next -> next;
                 if (temp3 -> next != NULL) temp3 = temp3 -> next -> next;
                 else temp3 = NULL;
-                free(head);
                 head = temp1;
-                free(temp1 -> next);
                 temp1 -> next = temp2;
                 if (temp2 != NULL) temp2 -> prev = temp1;
             }else{
                 temp1 = temp1 -> prev;
                 temp3 = temp3 -> next;
-                free(temp1 -> next);
                 temp1 -> next = temp2;
                 temp2 -> prev = temp1;
-                free(temp3 -> prev);
                 temp3 -> prev = temp2;
                 temp2 -> next = temp3;
             }
         }
     }
     bool answer = temp1 -> contain;
+    
     while (head != NULL){
         expr *temp = head -> next;
         free(head);
         head = temp;
     }
+     
     return answer;
 }
 
@@ -487,4 +566,24 @@ void test_expr(expr *head){
         temp = temp -> next;
     }
     printf ("\n");
+}
+
+double complete_similarity(int k,int j){
+    if (k == j){
+        return 0;
+    }
+    int temp1 = 0, temp2 = 0;
+    int same = 0;
+    while ((temp1 != mymails[k].token_num) && (temp2 != mymails[j].token_num)){
+        if (mymails[k].token[temp1] == mymails[j].token[temp2]){
+            same ++;
+            temp1 ++;
+            temp2 ++;
+        }else if (mymails[k].token[temp1] > mymails[j].token[temp2]){
+            temp2 ++;
+        }else{
+            temp1 ++;
+        }
+    }
+    return (double)same / (double)(mymails[k].token_num + mymails[j].token_num - same);
 }
