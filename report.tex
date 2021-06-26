@@ -9,8 +9,8 @@
 % Please modified below brackets with your team's information.
 \def \teamno {10}
 \def \teammembers {B09902005, B09902013, B09902096}
-\def \bestranking {??}
-\def \bestscore {?????.??}
+\def \bestranking {34 (on 20210625)}
+\def \bestscore {72432.12 (on 20210625)}
 
 \geometry{
     a4paper,
@@ -36,13 +36,51 @@
 \begin{document}
 
 \section*{Data Structures \& Algorithms}
-Explain what data structures and algorithms you used and why you choose to use them.
+\textbf{Preprocessing:}\\
+Explain what data structures and algorithms you used and why you choose to use them.\\ \\
+\textbf{Expression Match:}
+
+We deal with expression first. We first convert the expression (char[]) into a postfix linked list (stack). (How we do this is like what had been taught in Hsuen-Tien Lin's class about stack.)
+This takes us $O(l_e)$ time and space to convert, where $l_e$ is the length of expression.
+
+After completing the postfix linked list, we can now use it to see which emails return true with this expression.\\
+For every mails, every tokens in the linked list can be viewed as true or false, which means whether the mail content contains this mail.
+(Since we use binary search to search a hash value in an email, so to decide true or false for a token, we'll need $O(\log l_l)$ time, where $l_l$ is the length of a letter. So totally, we'll spend $O(n l_e \log l_l)$ time on it, where $n$ is the numer of letters.)
+(Note that $l_e = 2048$, $l_l = 100000$.)
+
+Finally, we can calculate the result, and this also takes $O(l_e)$ time.\\ \\
+\textbf{Find Similar:}\\
+Explain what data structures and algorithms you used and why you choose to use them.\\ \\
+\textbf{Group Analysis:}\\
+Explain what data structures and algorithms you used and why you choose to use them.\\
 
 \section*{Cost Estimations of Queries}
-Provide and compare the cost estimation of your implementation on each types of queries. Using a table to show difference is encouraged.
+\textbf{Preprocessing:}\\
+Provide and compare the cost estimation of your implementation on each types of queries. Using a table to show difference is encouraged.\\ \\
+\textbf{Expression Match:}\\
+Our implementation solves Expression Match in $O(n l_e \log l_l)$, where $l_e$ is the length of expression, (about 2048), and $l_l$ is the length of an email (about 100000).\\ \\
+\textbf{Find Similar:}\\
+Provide and compare the cost estimation of your implementation on each types of queries. Using a table to show difference is encouraged.\\ \\
+\textbf{Group Analysis:}\\
+Provide and compare the cost estimation of your implementation on each types of queries. Using a table to show difference is encouraged.\\
+
+\begin{center}
+ \begin{tabular}{||c c c||} 
+ \hline
+ \textbf{quiries} & \textbf{time complexity} & \textbf{space complexity} \\ [0.5ex] 
+ \hline\hline
+ Expression Match & $O(n l_e \log l_l)$ & $O(l_e)$ \\ 
+ \hline
+ Find Similar & O() & O() \\
+ \hline
+ Group Analysis & O() & O() \\
+ \hline
+\end{tabular}
+\end{center}
 
 \section*{Scheduling Strategy}
-Describe how you design the strategy to answer queries. Does your strategy work as well as you imagined? If (not) so, why?
+Describe how you design the strategy to answer queries. Does your strategy work as well as you imagined? If (not) so, why?\\ \\
+
 
 \section*{Additional Notes (*optinal)}
 Supply any other efforts/findings you have tried/discovered that (may) improves your implementation.
