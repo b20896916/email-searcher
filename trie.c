@@ -27,7 +27,7 @@ void insert(trie *o, char *s, int n, int k) {
         o->end = k;
         return;
     }
-    insert(o->p[transform(*s)], s+1, n-1);
+    insert(o->p[transform(*s)], s+1, n-1, k);
 }
 
 int trie_search(trie *o, char *s, int n) {
