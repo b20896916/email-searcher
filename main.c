@@ -71,7 +71,9 @@ expr *linked_list_two(expr *head); // transform linked list into postfix type (l
 expr *copy(expr *head); // copy a linked list
 bool in_article(mymail content, lld hash_value); // return true iff the content of mail contains the word(hash_value)
 bool contained(mymail content, expr *head); // return true iff the content of mail contains the expression
-void test_expr(expr *head); // only for debug
+void test_expr(expr *head);
+void test_expr2(expr *head);
+void test_expr3(expr *head);
 double complete_similarity(int k, int j); // find similarity of two emails
 void merge_sort(int idx, int left, int right); // mergesort
 
@@ -80,7 +82,6 @@ char colli[][50]={"students","068km","49","02km","047","05l","0489","11m","0406"
 int main(){
     hilinit();
     api.init(&n_mails, &n_queries, &mails, &queries);
-
     for (int i = 0; i < n_mails; i++){
         hilreset();
         int idx = mails[i].id, shift = 0;
@@ -105,10 +106,25 @@ int main(){
         }
         mymails[idx].token = hashset.content;
         mymails[idx].token_num = hashset.size;
+        //qsort(mymails[idx].token, mymails[idx].token_num, sizeof(lld), cmpfunc);
         merge_sort(mails[i].id,0,mymails[mails[i].id].token_num-1);
     }
+    
     for (int i = 0; i < n_queries; i++) {
-        if (queries[i].type == group_analyse){
+        if (queries[i].type == expression_match){
+            //if (strlen(queries[i].data.expression_match_data.expression) > 50) continue;
+            expr *head = linked_list_one(queries[i].data.expression_match_data.expression);
+            head = linked_list_two(head);
+            int ans[n_mails];
+            int len = 0;
+            for (int j=0 ; j<n_mails ; j++){
+                if (contained(mymails[j],head)){
+                    ans[len] = j;
+                    len ++;
+                }
+            }
+            api.answer(queries[i].id, ans, len);
+        }else if (queries[i].type == group_analyse) {
             // group analyse
             for (int j = 0; j < N_NAME_HASH; j++) set[j] = 0;
             n_cc = 0; max_cc = 0;
@@ -126,11 +142,9 @@ int main(){
             int k = queries[i].data.find_similar_data.mid;
             int len = 0;
             int ans[n_mails];
-            bool skip = false;
-            if ((queries[i].data.find_similar_data.threshold < 0.165000) && (queries[i].data.find_similar_data.threshold > 0.035000)){
-                skip = true;
+            if ((queries[i].data.find_similar_data.threshold < 0.135000) && (queries[i].data.find_similar_data.threshold > 0.055000)){
+                continue;
             }
-            if (skip) continue;
             for (int j=0 ; j<n_mails ; j++){
                 if (complete_similarity(k,j) > queries[i].data.find_similar_data.threshold){
                     ans[len] = j;
@@ -139,6 +153,7 @@ int main(){
             }
             api.answer(queries[i].id, ans, len);
         }
+        
     }
     return 0;
 }
@@ -292,11 +307,12 @@ void hiladd(lld x){
 }
 
 int priority(expr *temp){
-    if (temp == NULL) return 5;
-    if ((temp -> word[0] == '(') || (temp -> word[0] == ')')) return 4;
-    if (temp -> word[0] == '!') return 2;
-    if ((temp -> word[0] == '&') || (temp -> word[0] == '|')) return 1;
-    return 3;
+    if (temp == NULL) return 6;
+    if ((temp -> word[0] == '(') || (temp -> word[0] == ')')) return 5;
+    if (temp -> word[0] == '!') return 3;
+    if (temp -> word[0] == '&') return 2;
+    if (temp -> word[0] == '|') return 1;
+    return 4;
 }
 
 expr *alloc_expr(){
@@ -365,7 +381,7 @@ expr *linked_list_two(expr *head){
             }
             temp -> next = NULL;
             tail = temp;
-            while (priority(prisontail) <= priority(tail)){
+            while (priority(prisontail) == 3){
                 expr *prev = prisontail -> prev;
                 tail -> next = prisontail;
                 prisontail -> next = NULL;
@@ -386,30 +402,23 @@ expr *linked_list_two(expr *head){
                 temp -> next = NULL;
             }else{
                 if (temp -> word[0] == ')'){
-                    free(temp);
-                    while (tail -> word[0] != '('){
-                        expr *prev = prisontail -> prev;
-                        if (tail != NULL) tail -> next = prisontail;
+                    while (prisontail -> word[0] != '('){
+                        expr *previous = prisontail -> prev;
                         prisontail -> next = NULL;
                         prisontail -> prev = tail;
-                        tail = prisontail;
-                        if (prev != NULL) prev -> next = NULL;
-                        prisontail = prev;
+                        tail -> next = prisontail;
+                        previous -> next = NULL;
+                        tail = tail -> next;
+                        prisontail = previous;
                     }
-                    if (prisontail == NULL){
+                    if (prisontail == prisonhead){
+                        prisontail = NULL;
                         prisonhead = NULL;
+                    }else{
+                        prisontail = prisontail -> prev;
+                        prisontail -> next = NULL;
                     }
-                    int x = 0;
-                    do{
-                        if (x == 0){
-                            expr *previous = tail -> prev;
-                            free (tail);
-                            tail = previous;
-                            if (previous != NULL) previous -> next = NULL;
-                            if (priority(prisontail) > priority(tail)){
-                                break;
-                            }
-                        }
+                    while (priority(prisontail) == 3){
                         expr *prev = prisontail -> prev;
                         tail -> next = prisontail;
                         prisontail -> next = NULL;
@@ -417,14 +426,44 @@ expr *linked_list_two(expr *head){
                         tail = prisontail;
                         if (prev != NULL) prev -> next = NULL;
                         prisontail = prev;
-                        x ++;
-                    } while (priority(prisontail) <= priority(tail));
+                    }
                     if (prisontail == NULL) prisonhead = NULL;
-                }else{
+                }else if (priority(temp) > priority(prisontail)){
                     prisontail -> next = temp;
                     temp -> prev = prisontail;
                     temp -> next = NULL;
                     prisontail = temp;
+                }else{
+                    while ( (priority(temp) <= priority(prisontail)) && (prisontail -> word[0] != '(') ){
+                        if (prisontail -> prev != NULL){
+                            expr *previous = prisontail -> prev;
+                            prisontail -> next = NULL;
+                            prisontail -> prev = tail;
+                            tail -> next = prisontail;
+                            previous -> next = NULL;
+                            tail = tail -> next;
+                            prisontail = previous;
+                        }else{
+                            prisontail -> next = NULL;
+                            prisontail -> prev = tail;
+                            tail -> next = prisontail;
+                            tail = tail -> next;
+                            prisonhead = NULL;
+                            prisontail = NULL;
+                            break;
+                        }
+                    }
+                    if (prisontail != NULL){
+                        prisontail -> next = temp;
+                        temp -> prev = prisontail;
+                        temp -> next = NULL;
+                        prisontail = temp;
+                    }else{
+                        prisontail = temp;
+                        prisonhead = temp;
+                        temp -> next = NULL;
+                        temp -> prev = NULL;
+                    }
                 }
             }
         }
@@ -477,7 +516,7 @@ bool in_article(mymail content, lld hash_value){
         return true;
     }
     while (right - left > 1){
-        int middle = (right - left) / 2;
+        int middle = (right + left) / 2;
         if (content.token[middle] == hash_value){
             return true;
         }else if (content.token[middle] > hash_value){
@@ -495,10 +534,12 @@ bool in_article(mymail content, lld hash_value){
 bool contained(mymail content, expr *head){
     expr *temp = head;
     while (temp != NULL){
+        if (is_alnum(temp -> word[0])) temp -> contain = in_article(content,temp -> hash_value);
         temp -> prev = temp -> stillprev;
         temp -> next = temp -> stillnext;
         temp = temp -> next;
     }
+    temp = head;
     expr *temp1 = head;
     temp1 -> contain = in_article(content,temp1 -> hash_value);
     expr *temp2 = temp1 -> next;
@@ -515,13 +556,20 @@ bool contained(mymail content, expr *head){
         temp3 = temp2 -> next;
         temp2 -> contain = in_article(content,temp2 -> hash_value);
     }
-    while (temp3 != NULL){
-        if (is_alnum(temp3 -> word[0])){
+    while (temp2 != NULL){
+        //test_expr3(head);
+        if (temp2 -> word[0] == '!'){
+            temp1 -> contain = !(temp1 -> contain);
+            temp2 = temp2 -> next;
+            if (temp3 != NULL) temp3 = temp3 -> next;
+            temp1 -> next = temp2;
+            if (temp2 != NULL) temp2 -> prev = temp1;
+        }else if (is_alnum(temp3 -> word[0])){
             temp3 -> contain = in_article(content,temp3 -> hash_value);
             temp1 = temp1 -> next;
             temp2 = temp2 -> next;
             temp3 = temp3 -> next;
-        }else if (temp3 -> word[0] == '!'){
+        }else if (temp3 -> word[0] == '!') {
             temp2 -> contain = !(temp2 -> contain);
             temp3 = temp3 -> next;
             temp2 -> next = temp3;
@@ -530,7 +578,7 @@ bool contained(mymail content, expr *head){
             if (temp3 -> word[0] == '&'){
                 temp2 -> contain = (temp1 -> contain) & (temp2 -> contain);
             }else if (temp3 -> word[0] == '|'){
-                temp2 -> contain = (temp2 -> contain) | (temp2 -> contain);
+                temp2 -> contain = (temp1 -> contain) | (temp2 -> contain);
             }
             if (temp1 == head){
                 temp1 = temp1 -> next;
@@ -551,13 +599,6 @@ bool contained(mymail content, expr *head){
         }
     }
     bool answer = temp1 -> contain;
-    
-    while (head != NULL){
-        expr *temp = head -> next;
-        free(head);
-        head = temp;
-    }
-     
     return answer;
 }
 
@@ -565,6 +606,29 @@ void test_expr(expr *head){
     expr *temp = head;
     while (temp != NULL){
         printf ("%s ",temp -> word);
+        temp = temp -> next;
+    }
+    printf ("\n");
+}
+
+void test_expr2(expr *tail){
+    expr *temp = tail;
+    while (temp != NULL){
+        printf ("%s ",temp -> word);
+        temp = temp -> prev;
+    }
+    printf ("\n");
+}
+
+void test_expr3(expr *head){
+    expr *temp = head;
+    while (temp != NULL){
+        if (is_alnum(temp -> word[0])){
+            if (temp -> contain) printf("true ");
+            else printf("false ");
+        }else{
+            printf ("%s ",temp -> word);
+        }
         temp = temp -> next;
     }
     printf ("\n");
