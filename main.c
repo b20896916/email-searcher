@@ -40,7 +40,7 @@ typedef struct expr{
 }expr;
 
 #define N_NAME_HASH 19815
-#define N_TOKEN_HASH 376909710223 //1000000000000037 may be too large.
+#define N_TOKEN_HASH 1000000009 //1000000000000037 may be too large.
 #define N_TOKEN_MAIL 3500
 int n_mails, n_queries;
 mail *mails;
@@ -112,7 +112,7 @@ int main(){
     
     for (int i = 0; i < n_queries; i++) {
         if (queries[i].type == expression_match){
-            //if (strlen(queries[i].data.expression_match_data.expression) > 50) continue;
+            if (strlen(queries[i].data.expression_match_data.expression) > 35) continue;
             expr *head = linked_list_one(queries[i].data.expression_match_data.expression);
             head = linked_list_two(head);
             int ans[n_mails];
@@ -135,9 +135,7 @@ int main(){
             int ans[2] = {n_cc, max_cc};
             api.answer(queries[i].id, ans, 2);
         }
-    }
-    for (int i = 0; i < n_queries; i++) {
-        if (queries[i].type == find_similar){
+        else if (queries[i].type == find_similar){
             // find similar
             int k = queries[i].data.find_similar_data.mid;
             int len = 0;
@@ -210,27 +208,12 @@ inline int transform(char c){
 }
 
 int token_hash(char* content, lld* hashvalue){
-    static char S[9][4] = {"20", "c0", "170", "kz", "nz", "6z", "140", "k0", "g0"};
-    int j;
-    for (int i = 0; i < 9; i++){
-        bool same = 1;
-        for (j = 0; j < 4; j++){
-            if ( !( S[i][j] || isalnum(content[j]) ) ) break;
-            if (content[j] != S[i][j]){
-                same = 0;
-                break;
-            }
-        }
-        if (same){
-            *hashvalue = i;
-            return j;
-        }
-    }
-    j = 0;
+    int j = 0;
     lld sum = 0;
     while (isalnum(content[j])){
-        sum *= 37;
-        sum += transform(content[j]);
+        sum <<= 8;
+        int h = transform(content[j]) + 3;
+        sum += h*h*h;
         sum %= N_TOKEN_HASH;
         j++;
     }
