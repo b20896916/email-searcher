@@ -2,6 +2,8 @@
 #include<fstream>
 #include<set>
 #include<cstring>
+#include<vector>
+#include<algorithm>
 #define int long long
 using namespace std;
 set<int> x,y;
@@ -25,16 +27,17 @@ inline int f(string s){
     return ans;
 }
 string a[1000000];
+vector<int> v;
 signed main(){
     //fstream fin(fstream::in);
-    int b,c=0,d=0;
+    int b,c=0,d=0,e=0;
     for(;cin>>a[c];c++){
         b=f(a[c]);
-        if(x.find(b)==x.end()){
-            x.insert(b);
+        if(x.count(b)){
+            y.insert(b);e++;
         }
         else{
-            y.insert(b);
+            x.insert(b);
         }
     }
     b=0;
@@ -52,7 +55,15 @@ signed main(){
         if(y.count(f(a[i]))){
             cout<<a[i]<<'\n';
             d++;
+            v.push_back(f(a[i]));
         }
     }
     cout<<d<<'\n';
+    sort(v.begin(),v.end());
+    for(int i=0;i<v.size();i++){
+        if((i==0||a[i]!=a[i-1])&&(i==v.size()-1||a[i]!=a[i+1])){
+            cout<<"No\n";
+        }
+    }
+    cout<<e<<'\n';
 }
